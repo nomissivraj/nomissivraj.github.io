@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <link rel="stylesheet" href="/css/style.css">
+    <title>Input</title>
+</head>
+<body>
+    <div style="padding: 10px;">
+        <h1>Sensum Diary</h1>
+        <p><span id="dateContainer"></span>Diary Entry</p>
+        <!-- could work out time of day and say good morning or afternoon -->
+        <div id="transcript">
+            Hello there, please begin when you're ready
+        </div>
+        <button id="startBtn" onclick="startRecord(this)">Start</button>
+        <button id="stopBtn" onclick="stopRecord(this)">Stop</button>
+        <button id="submitBtn" onClick="save(this)">Done/submit</button>
+    </div>
+    
+
+<script src="/js/socket.io.js"></script>
+    <script>
+        //Connect to socket through port in pi/server.js
+        var socket = io.connect('http://localhost:5000');
+        //When book open event is sent from server Log book open and switch to index page
+        socket.on('bookOpen', (state) => {
+            if (state === false) {
+                window.location.replace("/");
+            }
+        });
+        
+        //Button Functions
+        //Get buttons
+        var startBtn = document.getElementById('startBtn');
+        var stopBtn = document.getElementById('stopBtn');
+        var submitBtn = document.getElementById('submitBtn');
+        var transcriptCont = document.getElementById('transcript');
+        
+        //on start click - emit 'record' to set recording mode, show stop btn and hide start btn 
+        function startRecord(el) {
+            transcriptCont.innerHTML = "";
+            socket.emit('startRecord', "record"); 
+            
+            //Delay user feedback to account for delay in socket communication and beginning of recording
+            el.style.display = "none";
+            submitBtn.style.display = "none";
+            transcriptCont.innerHTML = "..."; //Send ready to record message to user
+            setTimeout(() => {
+                stopBtn.style.display = "inline-block";
+                transcriptCont.innerHTML = "Speak to me :)"; //Send ready to record message to user
+            }, 2000);
+        }
+        
+        //on stop click - emit 'stopped' to stop recording mode, show submit and start buttons (hide stop button)
+        function stopRecord(el) {
+            socket.emit('stopRecord', "stopped"); 
+            submitBtn.style.display = "inline-block";
+            startBtn.style.display = "inline-block";
+            el.style.display = "none";
+            transcriptCont.innerHTML = "Waiting for transcript..."; // Let user know that transcript incoming 
+        }
+        
+        //When transcript is recieved from server (triggered by stop state in server) get transcript container and insert transcript
+        socket.on('transcript', (transcriptRes) => {
+            if (transcriptRes) {
+                console.log("recieved transcript");
+                console.log(transcriptRes);
+                transcriptCont.innerHTML = transcriptRes;
+            }
+        });
+        
+        //On save/submit click - emit saveEntry which will get analysis and add entry to database hide save button
+        function save(el) {
+            var transcript = document.getElementById('transcript').innerHTML;
+            socket.emit('saveEntry', transcript);
+            el.style.display = "none";
+            transcriptCont.innerHTML = "Entry successfully sent";
+        }
+        
+            var date = new Date().toLocaleDateString();
+            var dateCont = document.getElementById("dateContainer");
+            dateContainer.innerHTML = date;
+    </script>    
+</body>
+</html>
